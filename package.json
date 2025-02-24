@@ -1,0 +1,87 @@
+{
+    "name": "repo-structure-generator",
+    "displayName": "Repo Structure Generator",
+    "description": "Generates a visual repository structure in Markdown format with detailed and minimal view support",
+    "version": "1.0.0",
+    "publisher": "Misaint20",
+    "private": false,
+    "license": "MIT",
+    "icon": "src/media/icon.png",
+    "galleryBanner": {
+        "color": "#C80000",
+        "theme": "dark"
+    },
+    "engines": {
+        "vscode": "^1.80.0"
+    },
+    "categories": [
+        "Visualization",
+        "Other"
+    ],
+    "keywords": [
+        "repository",
+        "structure",
+        "markdown",
+        "documentation",
+        "visualization"
+    ],
+    "main": "./src/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "extension.generateRepoStructure",
+                "title": "Generate Repository Structure",
+                "category": "Repo Structure"
+            },
+            {
+                "command": "extension.generateMinimalRepoStructure",
+                "title": "Generate Minimal Repository Structure",
+                "category": "Repo Structure"
+            },
+            {
+                "command": "extension.previewRepoStructure",
+                "title": "Preview Repository Structure",
+                "category": "Repo Structure"
+            }
+        ],
+        "menus": {
+            "explorer/context": [
+                {
+                    "command": "extension.previewRepoStructure",
+                    "group": "navigation"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "lint": "eslint . --ext .js",
+        "pretest": "npm run lint",
+        "test": "node ./test/runTest.js",
+        "vscode:prepublish": "npm run lint",
+        "package": "vsce package",
+        "publish": "vsce publish"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "@types/vscode": "^1.80.0",
+        "@types/node": "^16.0.0",
+        "eslint": "^8.47.0",
+        "typescript": "^5.1.6",
+        "@vscode/vsce": "^2.15.0",
+        "@vscode/test-electron": "^2.3.4"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/TuUsuario/repo-structure-generator.git"
+    },
+    "bugs": {
+        "url": "https://github.com/TuUsuario/repo-structure-generator/issues"
+    },
+    "homepage": "https://github.com/TuUsuario/repo-structure-generator#readme",
+    "capabilities": {
+        "virtualWorkspaces": true,
+        "untrustedWorkspaces": {
+            "supported": true
+        }
+    }
+}
