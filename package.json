@@ -72,12 +72,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/TuUsuario/repo-structure-generator.git"
+        "url": "https://github.com/Misaint20/RepoStructure-Extension.git"
     },
     "bugs": {
-        "url": "https://github.com/TuUsuario/repo-structure-generator/issues"
+        "url": "https://github.com/Misaint20/RepoStructure-Extension/issues"
     },
-    "homepage": "https://github.com/TuUsuario/repo-structure-generator#readme",
+    "homepage": "https://github.com/Misaint20/RepoStructure-Extension#readme",
     "capabilities": {
         "virtualWorkspaces": true,
         "untrustedWorkspaces": {
