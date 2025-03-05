@@ -1,8 +1,10 @@
 {
+    "type": "module",
     "name": "repo-structure-generator",
+
     "displayName": "Repo Structure Generator",
     "description": "Generates a visual repository structure in Markdown format with detailed and minimal view support",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "publisher": "Misaint20",
     "private": false,
     "license": "MIT",
@@ -12,7 +14,7 @@
         "theme": "dark"
     },
     "engines": {
-        "vscode": "^1.80.0"
+        "vscode": "^1.97.0"
     },
     "categories": [
         "Visualization",
@@ -61,14 +63,16 @@
         "package": "vsce package",
         "publish": "vsce publish"
     },
-    "dependencies": {},
+    "dependencies": {
+        "eslint-define-config": "^2.1.0"
+    },
     "devDependencies": {
-        "@types/vscode": "^1.80.0",
-        "@types/node": "^16.0.0",
-        "eslint": "^8.47.0",
-        "typescript": "^5.1.6",
-        "@vscode/vsce": "^2.15.0",
-        "@vscode/test-electron": "^2.3.4"
+        "@types/node": "^22.13.9",
+        "@types/vscode": "^1.97.0",
+        "@vscode/test-electron": "^2.4.1",
+        "@vscode/vsce": "^3.2.2",
+        "eslint": "^9.21.0",
+        "typescript": "^5.8.2"
     },
     "repository": {
         "type": "git",
