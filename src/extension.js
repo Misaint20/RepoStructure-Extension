@@ -2,6 +2,8 @@ const vscode = require('vscode');
 const { generateRepoStructure, generateStructureFile } = require('./repoStructure');
 const { generateMinimalRepoStructure } = require('./minimalRepoStructure');
 const { showPreview } = require('./preview/repoPreview');
+const { DependencyAnalyzer } = require('./codeGraph/dependencyAnalyzer');
+const { getGraphHTML } = require('./codeGraph/graphTemplate');
 const path = require('path');
 
 function activate(context) {
@@ -69,7 +71,59 @@ function activate(context) {
         }
     });
 
-    context.subscriptions.push(disposableRepoStructure, disposableMinimalRepoStructure, disposablePreview);
+    let disposableCodeGraph = vscode.commands.registerCommand('extension.showCodeGraph', async () => {
+        try {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('Please open a folder first');
+                return;
+            }
+
+            let panel = null;
+
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "Analyzing code dependencies...",
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 0 });
+                
+                const rootPath = workspaceFolders[0].uri.fsPath;
+                const analyzer = new DependencyAnalyzer();
+                
+                progress.report({ increment: 50, message: "Building dependency graph..." });
+                const graph = await analyzer.analyzeDependencies(rootPath, ignoreList);
+
+                if (!graph || !graph.nodes || graph.nodes.length === 0) {
+                    vscode.window.showInformationMessage('No code dependencies found in this folder.');
+                    return;
+                }
+
+                progress.report({ increment: 50, message: "Rendering graph..." });
+                
+                panel = vscode.window.createWebviewPanel(
+                    'codeGraph',
+                    'Code Dependencies Graph',
+                    vscode.ViewColumn.One,
+                    {
+                        enableScripts: true,
+                        retainContextWhenHidden: true
+                    }
+                );
+
+                panel.webview.html = getGraphHTML(graph);
+            });
+
+            // Mostrar mensaje de error si el panel no se creó
+            if (!panel) {
+                vscode.window.showErrorMessage('Failed to create dependency graph visualization');
+            }
+        } catch (error) {
+            vscode.window.showErrorMessage(`Error: ${error.message}`);
+        }
+    });
+
+    context.subscriptions.push(disposableRepoStructure, disposableMinimalRepoStructure, disposablePreview, disposableCodeGraph);
 }
 
 function deactivate() {}

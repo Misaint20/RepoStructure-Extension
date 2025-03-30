@@ -1,10 +1,9 @@
 {
-    "type": "module",
+    "type": "commonjs",
     "name": "repo-structure-generator",
-
     "displayName": "Repo Structure Generator",
     "description": "Generates a visual repository structure in Markdown format with detailed and minimal view support",
-    "version": "1.0.2",
+    "version": "1.1.1",
     "publisher": "Misaint20",
     "private": false,
     "license": "MIT",
@@ -14,8 +13,14 @@
         "theme": "dark"
     },
     "engines": {
-        "vscode": "^1.97.0"
+        "vscode": "^1.80.0"
     },
+    "activationEvents": [
+        "onCommand:extension.generateRepoStructure",
+        "onCommand:extension.generateMinimalRepoStructure",
+        "onCommand:extension.previewRepoStructure",
+        "onCommand:extension.showCodeGraph"
+    ],
     "categories": [
         "Visualization",
         "Other"
@@ -31,47 +36,52 @@
     "contributes": {
         "commands": [
             {
-                "command": "extension.generateRepoStructure",
-                "title": "Generate Repository Structure",
-                "category": "Repo Structure"
-            },
-            {
-                "command": "extension.generateMinimalRepoStructure",
-                "title": "Generate Minimal Repository Structure",
-                "category": "Repo Structure"
-            },
-            {
                 "command": "extension.previewRepoStructure",
-                "title": "Preview Repository Structure",
-                "category": "Repo Structure"
+                "title": "View Repository Structure",
+                "category": "Repo Structure",
+                "icon": "$(preview)"
+            },
+            {
+                "command": "extension.showCodeGraph",
+                "title": "View Interactive Code Map",
+                "category": "Repo Structure",
+                "icon": "$(type-hierarchy)"
             }
         ],
         "menus": {
             "explorer/context": [
                 {
+                    "when": "explorerResourceIsFolder",
                     "command": "extension.previewRepoStructure",
-                    "group": "navigation"
+                    "group": "repoStructure@1"
+                },
+                {
+                    "when": "explorerResourceIsFolder",
+                    "command": "extension.showCodeGraph",
+                    "group": "repoStructure@2"
                 }
             ]
         }
     },
     "scripts": {
-        "lint": "eslint . --ext .js",
+        "lint": "eslint .",
         "pretest": "npm run lint",
         "test": "node ./test/runTest.js",
         "vscode:prepublish": "npm run lint",
-        "package": "vsce package",
-        "publish": "vsce publish"
+        "package": "vsce package --no-yarn",
+        "publish": "vsce publish --no-yarn"
     },
     "dependencies": {
-        "eslint-define-config": "^2.1.0"
+        "d3": "^7.9.0",
+        "eslint-define-config": "^2.1.0",
+        "vscode-uri": "^3.0.8"
     },
     "devDependencies": {
         "@types/node": "^22.13.9",
-        "@types/vscode": "^1.97.0",
+        "@types/vscode": "^1.80.0",
         "@vscode/test-electron": "^2.4.1",
         "@vscode/vsce": "^3.2.2",
-        "eslint": "^9.21.0",
+        "eslint": "^9.23.0",
         "typescript": "^5.8.2"
     },
     "repository": {

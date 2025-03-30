@@ -1,15 +1,30 @@
 # Repository Structure Generator
 
-A Visual Studio Code extension that generates a visual representation of your repository structure in Markdown format.
+A Visual Studio Code extension that generates a visual representation of your repository structure, with support for both detailed and minimal views. Now featuring an interactive code map visualization!
 
 ## Features
 
-- Generate detailed repository structure
-- Generate minimal repository structure
-- Live preview with interactive controls
-- Copy to clipboard functionality
-- Customizable ignore patterns
-- Support for various file types with icons
+### 🆕 Interactive Code Map (New!)
+- Visualize your project's code dependencies in an interactive graph
+- Smart framework detection (Next.js, React, React Native, Node.js)
+- Real-time code preview on hover
+- Zoom and pan capabilities
+- Drag and drop nodes to organize your view
+- Auto-detection of project structure and relationships
+
+### Enhanced Preview Mode
+- 🔍 Real-time search functionality
+- 👆 Double-click to expand/collapse folders
+- 🎨 Improved visual styling
+- 💾 One-click file generation
+- 📋 Easy copy to clipboard
+
+### Supported Frameworks
+- Next.js (App Router and Pages Router)
+- React
+- React Native
+- Node.js Backend
+- Generic JavaScript/TypeScript projects
 
 ## Usage
 
@@ -34,7 +49,7 @@ This extension contributes the following commands:
 
 ## Known Issues
 
-Report issues at [GitHub Issues](https://github.com/YourUsername/repo-structure-generator/issues)
+Report issues at [GitHub Issues](https://github.com/Misaint20/repo-structure-generator/issues)
 
 ## Release Notes
 
@@ -42,6 +57,20 @@ Report issues at [GitHub Issues](https://github.com/YourUsername/repo-structure-
 
 Initial release of Repository Structure Generator
 
+## What's New in 1.1.0
+
+### Major Features
+1. **Interactive Code Map**: Visualize your code dependencies with an interactive D3.js graph (Working in Progress)
+2. **Framework Detection**: Automatic detection and specialized analysis for different frameworks (Only Next.js and React are supported for now)
+3. **Real-time Search**: Search through your project structure in real-time
+4. **Enhanced Preview**: Improved preview interface with better interactivity
+
+### Technical Improvements
+- Optimized memory usage for large projects
+- Smarter dependency analysis with caching
+- Better handling of circular dependencies
+- Improved performance through memoization
+
 ## License
 
-[MIT](LICENSE.md) 
+[MIT](LICENSE.md)

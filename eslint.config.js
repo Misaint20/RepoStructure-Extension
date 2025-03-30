@@ -1,18 +1,14 @@
-import { defineConfig } from 'eslint-define-config';
+const { defineConfig } = require("eslint/config");
 
-export default defineConfig([
+module.exports = defineConfig([
     {
+        files: ['**/*'],
         languageOptions: {
-            globals: {
-                node: true,
-                browser: true,
-                commonjs: true,
-                es2024: true,
-                acquireVsCodeApi: 'readonly'
-            },
-            parserOptions: {
-                ecmaVersion: 'latest'
-            }
+            ecmaVersion: 'latest',
+            sourceType: 'commonjs'
+        },
+        globals: {
+            acquireVsCodeApi: 'readonly'
         },
         rules: {
             indent: ['error', 4],
@@ -22,6 +18,7 @@ export default defineConfig([
             'no-unused-vars': ['warn'],
             'no-console': ['warn', { allow: ['warn', 'error'] }]
         },
-        ignores: ['node_modules', '.git', 'logs', 'package-lock.json']
-    },
+        // Archivos y carpetas a ignorar
+        ignores: ['node_modules', '.git', 'logs', 'package-lock.json', 'out', 'dist']
+    }
 ]);

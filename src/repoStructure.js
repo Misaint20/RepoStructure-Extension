@@ -1,13 +1,26 @@
-// Script para generar la estructura del repositorio en un archivo Markdown con HTML
 const fs = require('fs/promises');
 const path = require('path');
 const { getIcon } = require('./config/iconConfig');
 const { frameworkDirs } = require('./config/frameworkConfig');
 const { commonStyles } = require('./styles/commonStyles');
+const { memoize } = require('./utils/common');
+
+// Memoizar getIcon para mejorar rendimiento
+const memoizedGetIcon = memoize(getIcon);
+
+// Caché para estructuras de directorios
+const structureCache = new Map();
 
 async function generateRepoStructure(startPath, ignore = []) {
+    // Verificar caché
+    const cacheKey = `${startPath}-${ignore.join(',')}`;
+    if (structureCache.has(cacheKey)) {
+        return structureCache.get(cacheKey);
+    }
+
     const entries = await fs.readdir(startPath, { withFileTypes: true });
     
+    // Optimizar filtrado y ordenamiento
     const filteredEntries = entries
         .filter(entry => !ignore.includes(entry.name) && !entry.name.startsWith('.'))
         .sort((a, b) => {
@@ -15,35 +28,49 @@ async function generateRepoStructure(startPath, ignore = []) {
             return a.name.localeCompare(b.name);
         });
 
-    const generateEntryHTML = async (entry, isLast) => {
-        const fullPath = path.join(startPath, entry.name);
-        const icon = getIcon(entry.name, entry.isDirectory());
-        const borderStyle = `border-left:1px solid #e1e4e8;height:100%;margin-left:-1px;${isLast?'display:none':''}`;
+    // Procesamiento en lotes para mejor rendimiento
+    const batchSize = 50;
+    const results = [];
+    
+    for (let i = 0; i < filteredEntries.length; i += batchSize) {
+        const batch = filteredEntries.slice(i, i + batchSize);
+        const batchPromises = batch.map((entry, idx) => 
+            generateEntryHTML(entry, (i + idx) === filteredEntries.length - 1, startPath, ignore)
+        );
+        results.push(...await Promise.all(batchPromises));
+    }
 
-        if (entry.isDirectory() && !frameworkDirs.includes(entry.name)) {
-            const subStructure = await generateRepoStructure(fullPath, ignore);
-            return `<details open><summary style="margin:10px 0;list-style:none;cursor:pointer;display:flex;align-items:center">
+    const structure = results.join('');
+    structureCache.set(cacheKey, structure);
+    
+    // Limpiar caché después de 5 minutos
+    setTimeout(() => structureCache.delete(cacheKey), 300000);
+    
+    return structure;
+}
+
+async function generateEntryHTML(entry, isLast, startPath, ignore) {
+    const fullPath = path.join(startPath, entry.name);
+    const icon = memoizedGetIcon(entry.name, entry.isDirectory());
+    const borderStyle = `border-left:1px solid #e1e4e8;height:100%;margin-left:-1px;${isLast?'display:none':''}`;
+
+    if (entry.isDirectory() && !frameworkDirs.includes(entry.name)) {
+        const subStructure = await generateRepoStructure(fullPath, ignore);
+        return `<details open><summary style="margin:10px 0;list-style:none;cursor:pointer;display:flex;align-items:center">
                 <div style="${borderStyle}"></div>
                 <div style="width:16px;border-bottom:1px solid #e1e4e8;margin-right:5px"></div>
                 <img src="${icon}" alt="folder" style="width:16px;height:16px;vertical-align:middle;margin-right:5px">
                 <strong>${entry.name}</strong>
             </summary>
             <div style="padding-left:24px;position:relative;${!isLast?'border-left:1px solid #e1e4e8':''}">${subStructure}</div></details>`;
-        }
-        
-        return !entry.isDirectory() ? `<div style="margin:10px 0;display:flex;align-items:center">
+    }
+    
+    return !entry.isDirectory() ? `<div style="margin:10px 0;display:flex;align-items:center">
             <div style="${borderStyle}"></div>
             <div style="width:16px;border-bottom:1px solid #e1e4e8;margin-right:5px"></div>
             <img src="${icon}" alt="file" style="width:16px;height:16px;vertical-align:middle;margin-right:5px">
             <span>${entry.name}</span>
         </div>` : '';
-    };
-
-    const structurePromises = filteredEntries.map((entry, index) => 
-        generateEntryHTML(entry, index === filteredEntries.length - 1)
-    );
-    
-    return (await Promise.all(structurePromises)).join('');
 }
 
 async function generateStructureFile(rootPath, structure, isMinimal = false) {
