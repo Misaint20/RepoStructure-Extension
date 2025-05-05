@@ -18,7 +18,7 @@ function getGraphHTML(data) {
         <html>
         <head>
             <meta charset="UTF-8">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://d3js.org 'unsafe-inline'; style-src 'unsafe-inline';">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://d3js.org 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:;">
             <script src="https://d3js.org/d3.v7.min.js"></script>
             <style>
                 body {
@@ -104,7 +104,17 @@ function getGraphHTML(data) {
                     jsx: '#61DAFB',         // React
                     ts: '#3178C6',          // TypeScript
                     tsx: '#61DAFB',         // React TS
-                    default: '#90A4AE'      // Default
+                    default: '#90A4AE',      // Default
+                    server: '#f44336',       // Rojo para el servidor
+                    model: '#607d8b',        // Azul grisáceo para modelos
+                    controller: '#795548',   // Marrón para controladores
+                    middleware: '#009688',   // Teal para middleware
+                    utility: '#ff9800',      // Naranja para utilidades
+                    config: '#9e9e9e',       // Gris para configuraciones
+                    database: '#3f51b5',     // Indigo para bases de datos
+                    helper: '#8bc34a',        // Verde claro para helpers
+                    type: '#e91e63',          // Rosado para tipos
+                    endpoint: '#03a9f4'       // Azul claro para endpoints
                 };
 
                 // Función de arrastre
@@ -163,15 +173,15 @@ function getGraphHTML(data) {
                         })
                         .strength(0.5)) // Reducir fuerza de enlaces para más flexibilidad
                     .force("charge", d3.forceManyBody()
-                        .strength(d => d.type === 'application' ? -3000 : 
-                                    d.type === 'layout' ? -2000 : 
-                                    d.type === 'page' ? -1500 : 
-                                    d.type === 'screen' ? -1500 : -1000)
+                        .strength(d => d.type === 'application' ? -4000 : 
+                                    d.type === 'layout' ? -3000 : 
+                                    d.type === 'page' ? -2500 : 
+                                    d.type === 'screen' ? -2500 : -2000)
                         .distanceMax(1000)) // Limitar la distancia máxima de repulsión
                     .force("center", d3.forceCenter(width / 2, height / 2).strength(0.1)) // Reducir fuerza al centro
                     .force("x", d3.forceX(width / 2).strength(0.02)) // Reducir fuerza de posicionamiento X
                     .force("y", d3.forceY(height / 2).strength(0.02)) // Reducir fuerza de posicionamiento Y
-                    .force("collision", d3.forceCollide().radius(d => d.radius * 3).strength(0.8)); // Aumentar radio de colisión
+                    .force("collision", d3.forceCollide().radius(d => d.radius * 4).strength(1)); // Aumentar radio de colisión
 
                 // Crear enlaces
                 const link = g.append("g")
@@ -238,7 +248,7 @@ function getGraphHTML(data) {
                 node.on("mouseover", (event, d) => {
                     const preview = document.getElementById("code-preview");
                     preview.style.display = "block";
-                    document.getElementById("preview-title").textContent = d.name;
+                    document.getElementById("preview-title").textContent = d.name + ' (' + d.type + ')';
                     document.getElementById("preview-content").textContent = d.content || 'No content available';
                 });
 

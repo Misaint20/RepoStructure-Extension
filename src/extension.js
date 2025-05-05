@@ -84,18 +84,23 @@ function activate(context) {
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: "Analyzing code dependencies...",
-                cancellable: false
-            }, async (progress) => {
+                cancellable: true
+            }, async (progress, token) => {
                 progress.report({ increment: 0 });
                 
                 const rootPath = workspaceFolders[0].uri.fsPath;
                 const analyzer = new DependencyAnalyzer();
                 
                 progress.report({ increment: 50, message: "Building dependency graph..." });
-                const graph = await analyzer.analyzeDependencies(rootPath, ignoreList);
+                const graph = await analyzer.analyzeDependencies(rootPath, ignoreList, token);
 
                 if (!graph || !graph.nodes || graph.nodes.length === 0) {
                     vscode.window.showInformationMessage('No code dependencies found in this folder.');
+                    return;
+                }
+
+                if (token.isCancellationRequested) {
+                    vscode.window.showInformationMessage('Operation cancelled.');
                     return;
                 }
 

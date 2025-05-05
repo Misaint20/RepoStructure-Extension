@@ -15,9 +15,10 @@ class DependencyAnalyzer {
         this.nextjsAnalyzer = new NextjsAnalyzer();
         this.reactNativeAnalyzer = new ReactNativeAnalyzer();
         this.nodejsAnalyzer = new NodejsAnalyzer();
+        this.projectRootCache = new Map(); // Cache project roots
     }
 
-    async detectProjects(rootPath) {
+    async detectProjects(rootPath, token) {
         const projectMarkers = {
             'package.json': 'node',
             'composer.json': 'php',
@@ -25,12 +26,19 @@ class DependencyAnalyzer {
             'build.gradle': 'java',
             'requirements.txt': 'python',
             'go.mod': 'go',
-            'Cargo.toml': 'rust'
+            'Cargo.toml': 'rust',
+            'mix.exs': 'elixir',
+            'pubspec.yaml': 'dart',
+            'Gemfile': 'ruby'
         };
 
         const projects = [];
 
         async function scanDir(dir) {
+            if (token?.isCancellationRequested) {
+                console.log('Operation cancelled.');
+                return;
+            }
             const entries = await fs.readdir(dir, { withFileTypes: true });
 
             for (const entry of entries) {
@@ -52,27 +60,28 @@ class DependencyAnalyzer {
         return projects;
     }
 
-    async analyzeDependencies(rootPath, ignore = []) {
-        // Detectar proyectos primero
-        const projects = await this.detectProjects(rootPath);
+    async analyzeDependencies(rootPath, ignore = [], token) {
+        const projects = await this.detectProjects(rootPath, token);
         this.projects = new Map(projects.map(p => [p.root, p]));
 
-        // Analizar proyectos específicos primero para conocer sus archivos
         const projectFiles = new Set();
         const specificProjectNodes = [];
         const specificProjectLinks = [];
 
-        // Analizar proyectos específicos
         for (const [projectRoot, project] of this.projects.entries()) {
+            if (token?.isCancellationRequested) {
+                console.log('Operation cancelled.');
+                return;
+            }
             if (project.type === 'node') {
                 try {
-                    const isNextJs = await this.isNextJsProject(projectRoot);
-                    const isReactNative = await this.isReactNativeProject(projectRoot);
-                    const isNodeBackend = await this.isNodejsBackendProject(projectRoot);
-                    
+                    const isNextJs = await this.isNextJsProject(projectRoot, token);
+                    const isReactNative = await this.isReactNativeProject(projectRoot, token);
+                    const isNodeBackend = await this.isNodejsBackendProject(projectRoot, token);
+
                     if (isNodeBackend) {
                         console.log('Analyzing Node.js Backend project:', projectRoot);
-                        const nodeGraph = await this.nodejsAnalyzer.analyzeNodeProject(projectRoot);
+                        const nodeGraph = await this.nodejsAnalyzer.analyzeNodeProject(projectRoot, token);
                         specificProjectNodes.push(...nodeGraph.nodes);
                         specificProjectLinks.push(...nodeGraph.links);
                         nodeGraph.nodes.forEach(node => {
@@ -82,10 +91,9 @@ class DependencyAnalyzer {
                         });
                     } else if (isNextJs) {
                         console.log('Analyzing Next.js project:', projectRoot);
-                        const nextGraph = await this.nextjsAnalyzer.analyzeNextProject(projectRoot);
+                        const nextGraph = await this.nextjsAnalyzer.analyzeNextProject(projectRoot, token);
                         specificProjectNodes.push(...nextGraph.nodes);
                         specificProjectLinks.push(...nextGraph.links);
-                        // Registrar archivos del proyecto Next.js
                         nextGraph.nodes.forEach(node => {
                             if (typeof node.id === 'string') {
                                 projectFiles.add(node.id);
@@ -93,10 +101,9 @@ class DependencyAnalyzer {
                         });
                     } else if (isReactNative) {
                         console.log('Analyzing React Native project:', projectRoot);
-                        const rnGraph = await this.reactNativeAnalyzer.analyzeReactNativeProject(projectRoot);
+                        const rnGraph = await this.reactNativeAnalyzer.analyzeReactNativeProject(projectRoot, token);
                         specificProjectNodes.push(...rnGraph.nodes);
                         specificProjectLinks.push(...rnGraph.links);
-                        // Registrar archivos del proyecto React Native
                         rnGraph.nodes.forEach(node => {
                             if (typeof node.id === 'string') {
                                 projectFiles.add(node.id);
@@ -104,10 +111,9 @@ class DependencyAnalyzer {
                         });
                     } else {
                         console.log('Analyzing React project:', projectRoot);
-                        const reactGraph = await this.reactAnalyzer.analyzeReactProject(projectRoot);
+                        const reactGraph = await this.reactAnalyzer.analyzeReactProject(projectRoot, token);
                         specificProjectNodes.push(...reactGraph.nodes);
                         specificProjectLinks.push(...reactGraph.links);
-                        // Registrar archivos del proyecto React
                         reactGraph.nodes.forEach(node => {
                             if (typeof node.id === 'string') {
                                 projectFiles.add(node.id);
@@ -117,26 +123,43 @@ class DependencyAnalyzer {
                 } catch (error) {
                     console.warn('Error analyzing project:', error.message);
                 }
+            } else {
+                const projectType = this.getProjectType(project);
+                console.log(`Analyzing ${projectType} project:`, projectRoot);
             }
         }
 
-        const files = await this.getAllFiles(rootPath, ignore);
+        const files = await this.getAllFiles(rootPath, ignore, token);
         const nonEmptyFiles = [];
 
-        // Primer paso: leer contenidos y filtrar archivos vacíos y los que ya están en proyectos específicos
-        for (const file of files) {
-            if (!projectFiles.has(file)) {  // Solo procesar archivos que no están en proyectos específicos
-                const content = await fs.readFile(file, 'utf-8');
-                if (content.trim().length > 0) {
-                    this.fileContents.set(file, content);
-                    nonEmptyFiles.push(file);
+        const fileContentsPromises = files.map(async file => {
+            if (token?.isCancellationRequested) {
+                console.log('Operation cancelled.');
+                return null;
+            }
+            if (!projectFiles.has(file)) {
+                try {
+                    const content = await fs.readFile(file, 'utf-8');
+                    if (content.trim().length > 0) {
+                        this.fileContents.set(file, content);
+                        nonEmptyFiles.push(file);
+                        return { file, content };
+                    }
+                } catch (error) {
+                    console.warn(`Error reading file ${file}:`, error);
+                    return null;
                 }
             }
-        }
+            return null;
+        });
 
-        // Segundo paso: analizar dependencias solo para archivos no incluidos en proyectos específicos
-        for (const file of nonEmptyFiles) {
-            const content = this.fileContents.get(file);
+        const fileContents = (await Promise.all(fileContentsPromises)).filter(Boolean);
+
+        for (const { file, content } of fileContents) {
+            if (token?.isCancellationRequested) {
+                console.log('Operation cancelled.');
+                return;
+            }
             const projectRoot = this.findProjectRoot(file);
 
             const dependencies = [
@@ -147,22 +170,25 @@ class DependencyAnalyzer {
                 ...this.findCustomImports(content, projectRoot)
             ].map(dep => this.resolveDependencyPath(dep, file, projectRoot))
                 .filter(Boolean)
-                .filter(dep => !projectFiles.has(dep));  // Filtrar dependencias que ya están en proyectos específicos
+                .filter(dep => !projectFiles.has(dep));
 
             this.dependencies.set(file, dependencies);
         }
 
         const { nodes, links } = this.formatDependencyGraph();
 
-        // Combinar nodos y enlaces
         return {
             nodes: [...nodes, ...specificProjectNodes],
             links: [...links, ...specificProjectLinks]
         };
     }
 
-    async isNextJsProject(projectRoot) {
+    async isNextJsProject(projectRoot, token) {
         try {
+            if (token?.isCancellationRequested) {
+                console.log('Operation cancelled.');
+                return false;
+            }
             const packageJson = await fs.readFile(
                 path.join(projectRoot, 'package.json'),
                 'utf-8'
@@ -182,8 +208,12 @@ class DependencyAnalyzer {
         }
     }
 
-    async isReactNativeProject(projectRoot) {
+    async isReactNativeProject(projectRoot, token) {
         try {
+            if (token?.isCancellationRequested) {
+                console.log('Operation cancelled.');
+                return false;
+            }
             const packageJson = await fs.readFile(
                 path.join(projectRoot, 'package.json'),
                 'utf-8'
@@ -200,18 +230,21 @@ class DependencyAnalyzer {
         }
     }
 
-    async isNodejsBackendProject(projectRoot) {
+    async isNodejsBackendProject(projectRoot, token) {
         try {
+            if (token?.isCancellationRequested) {
+                console.log('Operation cancelled.');
+                return false;
+            }
             const packageJson = await fs.readFile(
                 path.join(projectRoot, 'package.json'),
                 'utf-8'
             );
             const { dependencies = {}, devDependencies = {} } = JSON.parse(packageJson);
-            
-            // Verificar dependencias típicas de backend
+
             const hasExpress = 'express' in dependencies;
             const hasNodemon = 'nodemon' in dependencies || 'nodemon' in devDependencies;
-            const hasFolderStructure = await this.hasBackendFolders(projectRoot);
+            const hasFolderStructure = await this.hasBackendFolders(projectRoot, token);
 
             return hasExpress && (hasNodemon || hasFolderStructure);
         } catch {
@@ -219,12 +252,15 @@ class DependencyAnalyzer {
         }
     }
 
-    async hasBackendFolders(projectRoot) {
+    async hasBackendFolders(projectRoot, token) {
         const backendFolders = ['routes', 'controllers', 'models', 'middleware'];
         const srcDir = path.join(projectRoot, 'src');
-        
-        // Verificar en la raíz y en src/
+
         for (const folder of backendFolders) {
+            if (token?.isCancellationRequested) {
+                console.log('Operation cancelled.');
+                return false;
+            }
             if (
                 await fs.access(path.join(projectRoot, folder)).then(() => true).catch(() => false) ||
                 await fs.access(path.join(srcDir, folder)).then(() => true).catch(() => false)
@@ -235,24 +271,74 @@ class DependencyAnalyzer {
         return false;
     }
 
+    async getAllFiles(dir, ignore, token) {
+        const files = [];
+        try {
+            const entries = await fs.readdir(dir, { withFileTypes: true });
+
+            for (const entry of entries) {
+                if (token?.isCancellationRequested) {
+                    console.log('Operation cancelled.');
+                    return [];
+                }
+                if (ignore.includes(entry.name) ||
+                    frameworkDirs.includes(entry.name)) continue;
+
+                const fullPath = path.join(dir, entry.name);
+                if (entry.isDirectory()) {
+                    files.push(...await this.getAllFiles(fullPath, ignore, token));
+                } else {
+                    if (/\.(js|jsx|ts|tsx|json|vue|py|rb|java|php)$/.test(entry.name)) {
+                        if (this.isValidFilePath(fullPath)) {
+                            files.push(fullPath);
+                        } else {
+                            console.warn(`Skipping invalid file path: ${fullPath}`);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(`Error reading directory ${dir}:`, error);
+        }
+
+        return files;
+    }
+
     findProjectRoot(filePath) {
+        if (this.projectRootCache.has(filePath)) {
+            return this.projectRootCache.get(filePath);
+        }
+
         let currentDir = path.dirname(filePath);
         while (currentDir !== path.dirname(currentDir)) {
             if (this.projects.has(currentDir)) {
+                this.projectRootCache.set(filePath, currentDir);
+                return currentDir;
+            }
+            const projectMarkers = ['package.json', 'composer.json', 'pom.xml', 'build.gradle', 'requirements.txt', 'go.mod', 'Cargo.toml'];
+            if (projectMarkers.some(marker => {
+                try {
+                    fs.access(path.join(currentDir, marker));
+                    return true;
+                } catch {
+                    return false;
+                }
+            })) {
+                this.projectRootCache.set(filePath, currentDir);
                 return currentDir;
             }
             currentDir = path.dirname(currentDir);
         }
+        this.projectRootCache.set(filePath, path.dirname(filePath));
         return path.dirname(filePath);
     }
 
-    // Nuevos métodos de análisis de dependencias
     findRelativeImports(content) {
         const patterns = [
-            /from\s+['"]\..*?['"]/g,           // from './path'
-            /import\s+['"]\..*?['"]/g,         // import './path'
-            /require\s*\(['"]\..*?['"]\)/g,    // require('./path')
-            /@import\s+['"]\..*?['"]/g         // @import './path'
+            /from\s+['"]\..*?['"]/g,
+            /import\s+['"]\..*?['"]/g,
+            /require\s*\(['"]\..*?['"]\)/g,
+            /@import\s+['"]\..*?['"]/g
         ];
 
         return patterns.flatMap(pattern =>
@@ -264,9 +350,9 @@ class DependencyAnalyzer {
 
     findStyleImports(content) {
         const patterns = [
-            /@import\s+['"].*?['"]/g,          // CSS/SCSS imports
-            /url\s*\(['"].*?['"]\)/g,          // url() in CSS
-            /<link[^>]+href=["'].*?["']/g      // <link href="...">
+            /@import\s+['"].*?['"]/g,
+            /url\s*\(['"].*?['"]\)/g,
+            /<link[^>]+href=["'].*?["']/g
         ];
 
         return patterns.flatMap(pattern =>
@@ -298,7 +384,6 @@ class DependencyAnalyzer {
         const links = [];
         const fileIndex = new Map();
 
-        // Agrupar archivos por proyecto
         const projectGroups = new Map();
         this.dependencies.forEach((_, file) => {
             const projectRoot = this.findProjectRoot(file);
@@ -308,11 +393,10 @@ class DependencyAnalyzer {
             projectGroups.get(projectRoot).push(file);
         });
 
-        // Crear nodos con información de proyecto
         Array.from(this.dependencies.keys()).forEach((file, index) => {
             const ext = path.extname(file);
             const shortName = path.basename(file);
-            const projectRoot = this.findProjectRoot(file);
+            let projectRoot = this.findProjectRoot(file);
             const projectType = this.projects.get(projectRoot)?.type || 'unknown';
             const relPath = path.relative(process.cwd(), file);
 
@@ -325,12 +409,11 @@ class DependencyAnalyzer {
                 projectRoot,
                 type: ext.slice(1) || 'file',
                 content: this.fileContents.get(file),
-                group: this.getFileGroup(file),
+                group: this.getFileGroup(file, projectType),
                 radius: this.calculateNodeSize(file)
             });
         });
 
-        // Crear enlaces
         this.dependencies.forEach((deps, file) => {
             const sourceIndex = fileIndex.get(file);
             deps.forEach(dep => {
@@ -351,25 +434,29 @@ class DependencyAnalyzer {
     calculateNodeSize(file) {
         const content = this.fileContents.get(file);
         const linesOfCode = content.split('\n').length;
-        // Tamaño base 8, máximo 20 basado en líneas de código
         return Math.min(20, Math.max(8, Math.log2(linesOfCode) * 3));
     }
 
-    getFileGroup(file) {
+    getFileGroup(file, projectType) {
         const ext = path.extname(file);
-        switch (ext) {
-            case '.js': return 1;
-            case '.jsx': return 1;
-            case '.ts': return 2;
-            case '.tsx': return 2;
-            case '.json': return 3;
-            case '.vue': return 4;
-            case '.py': return 5;
-            case '.rb': return 6;
-            case '.java': return 7;
-            case '.php': return 8;
-            case '.md': return 3;
-            default: return 9;
+        switch (projectType) {
+            case 'node':
+                switch (ext) {
+                    case '.js': return 1;
+                    case '.jsx': return 1;
+                    case '.ts': return 2;
+                    case '.tsx': return 2;
+                    case '.json': return 3;
+                    default: return 9;
+                }
+            case 'php': return 8;
+            case 'java': return 7;
+            case 'python': return 5;
+            default:
+                switch (ext) {
+                    case '.md': return 3;
+                    default: return 9;
+                }
         }
     }
 
@@ -383,42 +470,34 @@ class DependencyAnalyzer {
         return [...content.matchAll(importRegex)].map(match => match[1]);
     }
 
-    async getAllFiles(dir, ignore) {
-        const files = [];
-        const entries = await fs.readdir(dir, { withFileTypes: true });
+    isValidFilePath(filePath) {
+        return !filePath.includes('..') && !filePath.startsWith('/');
+    }
 
-        for (const entry of entries) {
-            if (ignore.includes(entry.name) ||
-                frameworkDirs.includes(entry.name)) continue;
-
-            const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) {
-                files.push(...await this.getAllFiles(fullPath, ignore));
-            } else {
-                // Solo incluir archivos de código
-                if (/\.(js|jsx|ts|tsx|json|vue|py|rb|java|php)$/.test(entry.name)) {
-                    files.push(fullPath);
-                }
+    async fileExists(filePath) {
+        try {
+            if (!this.isValidFilePath(filePath)) {
+                console.warn(`Skipping invalid file path check: ${filePath}`);
+                return false;
             }
+            await fs.access(filePath);
+            return true;
+        } catch {
+            return false;
         }
-
-        return files;
     }
 
     resolveDependencyPath(dep, currentFile, rootPath) {
         if (dep.startsWith('.')) {
-            // Ruta relativa
             const currentDir = path.dirname(currentFile);
             const absolutePath = path.resolve(currentDir, dep);
 
-            // Intentar diferentes extensiones si no se especifica
             const extensions = ['.js', '.json', '.ts', '.jsx', '.tsx', ''];
             for (const ext of extensions) {
                 const fullPath = absolutePath + ext;
                 if (this.fileContents.has(fullPath)) {
                     return fullPath;
                 }
-                // Comprobar también index files en directorios
                 if (ext === '') {
                     const indexFile = path.join(absolutePath, 'index.js');
                     if (this.fileContents.has(indexFile)) {
@@ -427,13 +506,27 @@ class DependencyAnalyzer {
                 }
             }
         } else {
-            // Módulo del proyecto o de node_modules
             const possiblePath = path.join(rootPath, dep);
             if (this.fileContents.has(possiblePath)) {
                 return possiblePath;
             }
         }
         return null;
+    }
+
+    getProjectType(project) {
+        switch (project.type) {
+            case 'node': return 'Node.js';
+            case 'php': return 'PHP';
+            case 'java': return 'Java';
+            case 'python': return 'Python';
+            case 'go': return 'Go';
+            case 'rust': return 'Rust';
+            case 'elixir': return 'Elixir';
+            case 'dart': return 'Dart';
+            case 'ruby': return 'Ruby';
+            default: return 'Unknown';
+        }
     }
 }
 

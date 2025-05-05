@@ -6,11 +6,12 @@ A Visual Studio Code extension that generates a visual representation of your re
 
 ### 🆕 Interactive Code Map (New!)
 - Visualize your project's code dependencies in an interactive graph
-- Smart framework detection (Next.js, React, React Native, Node.js)
+- Smart framework detection (Next.js, React, React Native, Node.js, PHP, Java, Python, Go, Rust, Elixir, Dart, Ruby)
 - Real-time code preview on hover
 - Zoom and pan capabilities
 - Drag and drop nodes to organize your view
 - Auto-detection of project structure and relationships
+- Cancellation tokens to stop long running operations
 
 ### Enhanced Preview Mode
 - 🔍 Real-time search functionality
@@ -24,6 +25,14 @@ A Visual Studio Code extension that generates a visual representation of your re
 - React
 - React Native
 - Node.js Backend
+- PHP
+- Java
+- Python
+- Go
+- Rust
+- Elixir
+- Dart
+- Ruby
 - Generic JavaScript/TypeScript projects
 
 ## Usage
@@ -70,6 +79,9 @@ Initial release of Repository Structure Generator
 - Smarter dependency analysis with caching
 - Better handling of circular dependencies
 - Improved performance through memoization
+- Improved project root detection logic
+- Increased spacing between nodes in code graph for better readability
+- Enhanced security by validating file paths
 
 ## License
 

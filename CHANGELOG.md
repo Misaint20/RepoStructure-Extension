@@ -1,6 +1,18 @@
 # Change Log
 
-## [1.1.0] - 2024-02-15
+## [1.1.2] - 2025-05-05
+### Added
+- Implemented cancellation tokens to stop long running operations.
+
+### Improved
+- Improved project root detection logic.
+- Increased spacing between nodes in code graph for better readability.
+- Enhanced security by validating file paths.
+
+### Fixed
+- Fixed fs.existsSync is not a function error.
+
+## [1.1.0] - 2024-03-29
 ### Added
 - Interactive Code Map visualization feature
 - Real-time search functionality in preview mode
@@ -25,7 +37,7 @@
 - More reliable dependency resolution
 - Better handling of circular dependencies
 
-## [1.0.2] - 2024-01-30
+## [1.0.2] - 2024-03-04
 ### Added
 - Initial preview feature for repository structure
 - Basic Markdown generation
@@ -35,7 +47,7 @@
 - Path resolution issues
 - Icon loading problems
 
-## [1.0.1] - 2024-01-15
+## [1.0.1] - 2025-02-23
 ### Added
 - Initial release
 - Basic repository structure generation

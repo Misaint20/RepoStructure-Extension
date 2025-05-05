@@ -67,7 +67,6 @@
         "lint": "eslint .",
         "pretest": "npm run lint",
         "test": "node ./test/runTest.js",
-        "vscode:prepublish": "npm run lint",
         "package": "vsce package --no-yarn",
         "publish": "vsce publish --no-yarn"
     },

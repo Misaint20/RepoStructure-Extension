@@ -1,24 +1,55 @@
-const { defineConfig } = require("eslint/config");
+/** @format */
 
-module.exports = defineConfig([
+import js from '@eslint/js';
+import eslintConfigPrettier from 'eslint-config-prettier';
+import globals from 'globals';
+import ts from '@typescript-eslint/eslint-plugin';
+import tsParser from '@typescript-eslint/parser';
+
+export default [
+    js.configs.recommended,
     {
-        files: ['**/*'],
+        files: ['**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx'],
+        ignores: ['node_modules/**', '.git/**', 'logs/**', 'package-lock.json', 'out/**', 'dist/**'],
         languageOptions: {
             ecmaVersion: 'latest',
-            sourceType: 'commonjs'
+            sourceType: 'module',
+            globals: {
+                ...globals.node,
+                ...globals.browser,
+                acquireVsCodeApi: 'readonly',
+            },
+            parserOptions: {
+                project: true,
+                tsconfigRootDir: './',
+            },
         },
-        globals: {
-            acquireVsCodeApi: 'readonly'
+        plugins: {
+            '@typescript-eslint': ts,
+        },
+        settings: {
+            'import/resolver': {
+                typescript: true,
+                node: true,
+            },
         },
         rules: {
-            indent: ['error', 4],
-            'linebreak-style': ['error', 'windows'],
+            indent: ['error', 2],
+            'linebreak-style': ['error', 'windows'], 
             quotes: ['error', 'single'],
             semi: ['error', 'always'],
             'no-unused-vars': ['warn'],
-            'no-console': ['warn', { allow: ['warn', 'error'] }]
+            'no-console': ['warn', { allow: ['warn', 'error'] }],
+            'no-undef': 'off',
+            '@typescript-eslint/explicit-function-return-type': 'off',
+            '@typescript-eslint/explicit-module-boundary-types': 'off',
+            '@typescript-eslint/no-explicit-any': 'off',
+            '@typescript-eslint/no-unused-vars': 'warn',
         },
-        // Archivos y carpetas a ignorar
-        ignores: ['node_modules', '.git', 'logs', 'package-lock.json', 'out', 'dist']
-    }
-]);
+        linterOptions: {
+            reportUnusedDisableDirectives: 'warn',
+        },
+        parser: tsParser,
+    },
+    eslintConfigPrettier,
+];
