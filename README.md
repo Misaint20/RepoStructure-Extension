@@ -12,6 +12,7 @@ A Visual Studio Code extension that generates a visual representation of your re
 - Drag and drop nodes to organize your view
 - Auto-detection of project structure and relationships
 - Cancellation tokens to stop long running operations
+- **New: Folder-level generation** (Right-click any folder to generate structure for that specific part of the project)
 
 ### Enhanced Preview Mode
 - 🔍 Real-time search functionality
@@ -21,7 +22,7 @@ A Visual Studio Code extension that generates a visual representation of your re
 - 📋 Easy copy to clipboard
 
 ### Supported Frameworks
-- Next.js (App Router and Pages Router)
+- Next.js (App Router and Pages Router) **Need to update some dependencies for nextjs 16**
 - React
 - React Native
 - Node.js Backend
@@ -38,15 +39,15 @@ A Visual Studio Code extension that generates a visual representation of your re
 ## Usage
 
 1. Open a folder in VS Code
-2. Access the Command Palette (Ctrl+Shift+P)
-3. Type "Repo Structure" to see available commands:
+2. Right-click on any folder in the Explorer or use the Command Palette (Ctrl+Shift+P)
+3. Select "Repo Structure" commands:
    - Generate Repository Structure
    - Generate Minimal Repository Structure
    - Preview Repository Structure
 
 ## Requirements
 
-- Visual Studio Code 1.80.0 or higher
+- Visual Studio Code 1.96.0 or higher
 
 ## Extension Settings
 
@@ -66,13 +67,13 @@ Report issues at [GitHub Issues](https://github.com/Misaint20/repo-structure-gen
 
 Initial release of Repository Structure Generator
 
-## What's New in 1.1.0
+## What's New in 1.2.0
 
-### Major Features
-1. **Interactive Code Map**: Visualize your code dependencies with an interactive D3.js graph (Working in Progress)
-2. **Framework Detection**: Automatic detection and specialized analysis for different frameworks (Only Next.js and React are supported for now)
-3. **Real-time Search**: Search through your project structure in real-time
-4. **Enhanced Preview**: Improved preview interface with better interactivity
+### Major Improvements
+1. **Full TypeScript Migration**: The entire extension has been rewritten in TypeScript for better performance, stability, and maintainability.
+2. **Folder Selection Support**: You can now generate structures for specific folders! Simply right-click any folder in the Explorer and select a "Repo Structure" command.
+3. **Enhanced Dependency Analysis**: Improved specialized analyzers for React, Next.js, and Node.js.
+4. **Improved Performance**: Optimized file scanning and recursive traversal for faster processing.
 
 ### Technical Improvements
 - Optimized memory usage for large projects
@@ -82,6 +83,7 @@ Initial release of Repository Structure Generator
 - Improved project root detection logic
 - Increased spacing between nodes in code graph for better readability
 - Enhanced security by validating file paths
+- Updated VS Code engine compatibility (v1.96.0+)
 
 ## License
 

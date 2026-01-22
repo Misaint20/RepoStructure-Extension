@@ -1,5 +1,20 @@
 # Change Log
 
+## [1.2.0] - 2025-05-20
+### Added
+- **Full TypeScript Migration**: Rewritten the entire codebase in TypeScript for improved reliability and developer experience.
+- **Folder Selection**: Enabled context menu support to generate structure/preview for specific subdirectories.
+- **Improved Specialized Analyzers**: Refined Node.js, Next.js, and React analyzers for more accurate dependency mapping.
+
+### Improved
+- **VS Code Engine Update**: Targeted VS Code 1.96.0 to leverage latest API features.
+- **Error Handling**: Enhanced error management during file system operations.
+- **Sorting Logic**: Folders are now consistently placed before files in generated structures.
+
+### Fixed
+- Fixed several path resolution edge cases in complex project structures.
+
+
 ## [1.1.2] - 2025-05-05
 ### Added
 - Implemented cancellation tokens to stop long running operations.

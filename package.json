@@ -3,7 +3,7 @@
     "name": "repo-structure-generator",
     "displayName": "Repo Structure Generator",
     "description": "Generates a visual repository structure in Markdown format with detailed and minimal view support",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "publisher": "Misaint20",
     "private": false,
     "license": "MIT",
@@ -13,11 +13,9 @@
         "theme": "dark"
     },
     "engines": {
-        "vscode": "^1.80.0"
+        "vscode": "^1.96.0"
     },
     "activationEvents": [
-        "onCommand:extension.generateRepoStructure",
-        "onCommand:extension.generateMinimalRepoStructure",
         "onCommand:extension.previewRepoStructure",
         "onCommand:extension.showCodeGraph"
     ],
@@ -32,7 +30,7 @@
         "documentation",
         "visualization"
     ],
-    "main": "./src/extension.js",
+    "main": "./dist/extension.js",
     "contributes": {
         "commands": [
             {
@@ -40,6 +38,16 @@
                 "title": "View Repository Structure",
                 "category": "Repo Structure",
                 "icon": "$(preview)"
+            },
+            {
+                "command": "extension.generateRepoStructure",
+                "title": "Generate Repository Structure",
+                "category": "Repo Structure"
+            },
+            {
+                "command": "extension.generateMinimalRepoStructure",
+                "title": "Generate Minimal Repository Structure",
+                "category": "Repo Structure"
             },
             {
                 "command": "extension.showCodeGraph",
@@ -64,8 +72,11 @@
         }
     },
     "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile && npm run lint",
         "lint": "eslint .",
-        "pretest": "npm run lint",
         "test": "node ./test/runTest.js",
         "package": "vsce package --no-yarn",
         "publish": "vsce publish --no-yarn"
@@ -81,7 +92,7 @@
         "@vscode/test-electron": "^2.4.1",
         "@vscode/vsce": "^3.2.2",
         "eslint": "^9.23.0",
-        "typescript": "^5.8.2"
+        "typescript": "^5.9.3"
     },
     "repository": {
         "type": "git",

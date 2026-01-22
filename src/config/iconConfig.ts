@@ -1,5 +1,6 @@
-// Mapeo de extensiones a iconos
-const iconMap = {
+import * as path from 'path';
+
+export const iconMap: Record<string, string> = {
     '.js': 'https://raw.githubusercontent.com/Misaint20/RepoStructure-Extension/3ac7707e061e555c7d664fa7eb75b2da08ded050/src/media/icons/javascript.svg',
     '.json': 'https://raw.githubusercontent.com/Misaint20/RepoStructure-Extension/3ac7707e061e555c7d664fa7eb75b2da08ded050/src/media/icons/json.svg',
     '.md': 'https://raw.githubusercontent.com/Misaint20/RepoStructure-Extension/3ac7707e061e555c7d664fa7eb75b2da08ded050/src/media/icons/markdown.svg',
@@ -31,13 +32,8 @@ const iconMap = {
     '.svg': 'https://raw.githubusercontent.com/Misaint20/RepoStructure-Extension/3ac7707e061e555c7d664fa7eb75b2da08ded050/src/media/icons/svg.svg',
 };
 
-function getIcon(name, isDirectory) {
+export function getIcon(name: string, isDirectory: boolean): string {
     if (isDirectory) return iconMap['folder'];
-    const ext = require('path').extname(name);
+    const ext = path.extname(name);
     return iconMap[ext] || iconMap['default'];
 }
-
-module.exports = {
-    iconMap,
-    getIcon
-};

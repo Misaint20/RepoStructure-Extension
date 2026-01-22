@@ -1,20 +1,12 @@
-const fs = require('fs/promises');
-const path = require('path');
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { GraphData, GraphNode, GraphLink, AnalyzerContext } from '../types';
 
-class NodejsAnalyzer {
-    constructor() {
-        this.routes = new Map();
-        this.controllers = new Map();
-        this.models = new Map();
-        this.services = new Map();
-        this.middleware = new Map();
-    }
-
-    async analyzeNodeProject(projectRoot) {
-        // Analizar package.json primero
+export class NodejsAnalyzer {
+    async analyzeNodeProject(projectRoot: string): Promise<GraphData> {
         const packageJson = await this.analyzePackageJson(projectRoot);
-        
-        const appNode = {
+
+        const appNode: GraphNode = {
             id: 'nodejs-root',
             name: 'Node.js Backend',
             type: 'application',
@@ -22,15 +14,13 @@ class NodejsAnalyzer {
             radius: 30
         };
 
-        const nodes = [appNode];
-        const links = [];
-        const processedFiles = new Set();
+        const nodes: GraphNode[] = [appNode];
+        const links: GraphLink[] = [];
+        const processedFiles = new Set<string>();
 
-        // Procesar el archivo principal desde package.json
         if (packageJson.main) {
             let mainFilePath = path.resolve(projectRoot, packageJson.main);
-            
-            // Ajustar la extensión si es necesario
+
             if (path.extname(mainFilePath) === '') {
                 for (const ext of ['.ts', '.js']) {
                     const pathWithExt = mainFilePath + ext;
@@ -41,7 +31,6 @@ class NodejsAnalyzer {
                 }
             }
 
-            // Si no encuentra el archivo en la ruta exacta, buscar en src/
             if (!(await this.fileExists(mainFilePath))) {
                 const srcMainPath = path.join(projectRoot, 'src', path.basename(mainFilePath));
                 if (await this.fileExists(srcMainPath)) {
@@ -51,7 +40,7 @@ class NodejsAnalyzer {
 
             if (await this.fileExists(mainFilePath)) {
                 const mainContent = await fs.readFile(mainFilePath, 'utf-8');
-                const mainNode = {
+                const mainNode: GraphNode = {
                     id: mainFilePath,
                     name: 'Server',
                     type: 'server',
@@ -61,8 +50,7 @@ class NodejsAnalyzer {
                 };
                 nodes.push(mainNode);
                 processedFiles.add(mainFilePath);
-                
-                // Conectar el servidor con la aplicación
+
                 links.push({
                     source: mainNode.id,
                     target: appNode.id,
@@ -70,7 +58,6 @@ class NodejsAnalyzer {
                     type: 'server-entry'
                 });
 
-                // Procesar dependencias del servidor
                 await this.processDependencies(mainFilePath, mainContent, {
                     nodes,
                     links,
@@ -82,12 +69,10 @@ class NodejsAnalyzer {
             }
         }
 
-        // Detectar estructura del proyecto
         const srcDir = path.join(projectRoot, 'src');
         const hasSrcDir = await this.fileExists(srcDir);
         const rootDir = hasSrcDir ? srcDir : projectRoot;
 
-        // Actualizar foldersToAnalyze para incluir carpetas específicas de tu proyecto
         const foldersToAnalyze = [
             { path: 'routes', type: 'route' },
             { path: 'controllers', type: 'controller' },
@@ -101,11 +86,10 @@ class NodejsAnalyzer {
             { path: 'helpers', type: 'helper' }
         ];
 
-        // Crear nodo para cada carpeta principal
         for (const folder of foldersToAnalyze) {
             const folderPath = path.join(rootDir, folder.path);
             if (await this.fileExists(folderPath)) {
-                const folderNode = {
+                const folderNode: GraphNode = {
                     id: `folder-${folder.path}`,
                     name: folder.path,
                     type: `${folder.type}-folder`,
@@ -113,8 +97,7 @@ class NodejsAnalyzer {
                     radius: 20
                 };
                 nodes.push(folderNode);
-                
-                // Conectar carpeta con el nodo servidor si existe, o con la aplicación
+
                 const mainNode = nodes.find(n => n.type === 'server') || appNode;
                 links.push({
                     source: folderNode.id,
@@ -137,7 +120,7 @@ class NodejsAnalyzer {
         return { nodes, links };
     }
 
-    async scanDirectory(currentPath, context) {
+    private async scanDirectory(currentPath: string, context: AnalyzerContext): Promise<void> {
         const entries = await fs.readdir(currentPath, { withFileTypes: true });
         const { nodes, links, processedFiles, parentNode, fileType } = context;
 
@@ -156,9 +139,9 @@ class NodejsAnalyzer {
             if (processedFiles.has(filePath)) continue;
 
             const content = await fs.readFile(filePath, 'utf-8');
-            const node = {
+            const node: GraphNode = {
                 id: filePath,
-                name: this.formatName(entry.name, fileType),
+                name: entry.name.replace(/\.(js|ts)$/, ''),
                 type: fileType,
                 content,
                 group: this.getNodeGroup(fileType),
@@ -168,32 +151,31 @@ class NodejsAnalyzer {
             nodes.push(node);
             processedFiles.add(filePath);
 
-            // Conectar con el nodo padre
-            links.push({
-                source: node.id,
-                target: parentNode.id,
-                value: 1,
-                type: `${fileType}-structure`
-            });
+            if (parentNode) {
+                links.push({
+                    source: node.id,
+                    target: parentNode.id,
+                    value: 1,
+                    type: `${fileType}-structure`
+                });
+            }
 
-            // Procesar dependencias
             await this.processDependencies(filePath, content, {
                 nodes,
                 links,
                 processedFiles,
                 sourceNode: node,
-                fileType
+                fileType,
+                rootDir: context.rootDir
             });
 
-            // Analizar rutas si es un archivo de rutas
             if (fileType === 'route') {
                 this.analyzeRoutes(content, node, nodes, links);
             }
         }
     }
 
-    analyzeRoutes(content, routeNode, nodes, links) {
-        // Detectar definiciones de rutas (Express.js style)
+    private analyzeRoutes(content: string, routeNode: GraphNode, nodes: GraphNode[], links: GraphLink[]): void {
         const routePatterns = [
             /\.get\(['"]([^'"]+)['"]/g,
             /\.post\(['"]([^'"]+)['"]/g,
@@ -206,13 +188,12 @@ class NodejsAnalyzer {
             const matches = content.matchAll(pattern);
             for (const match of matches) {
                 const routePath = match[1];
-                // Crear nodo para cada endpoint
-                const endpointNode = {
+                const endpointNode: GraphNode = {
                     id: `${routeNode.id}-${routePath}`,
-                    name: `${routePath}`,
+                    name: routePath,
                     type: 'endpoint',
                     content: `Endpoint: ${routePath}`,
-                    group: 5,
+                    group: 9,
                     radius: 8
                 };
                 nodes.push(endpointNode);
@@ -226,51 +207,28 @@ class NodejsAnalyzer {
         });
     }
 
-    formatName(fileName, fileType) {
-        return fileName.replace(/\.(js|ts)$/, '');
-    }
-
-    getNodeGroup(type) {
-        const groups = {
-            'application': 0,
-            'server': 1,
-            'route': 2,
-            'controller': 3,
-            'model': 4,
-            'service': 5,
-            'middleware': 6,
-            'utility': 7,
-            'config': 8,
-            'endpoint': 9,
-            'database': 10,
-            'helper': 11,
-            'type': 12
+    private getNodeGroup(type: string): number {
+        const groups: Record<string, number> = {
+            'application': 0, 'server': 1, 'route': 2, 'controller': 3,
+            'model': 4, 'service': 5, 'middleware': 6, 'utility': 7,
+            'config': 8, 'endpoint': 9, 'database': 10, 'helper': 11, 'type': 12
         };
         return groups[type] || 13;
     }
 
-    getNodeRadius(type) {
-        const sizes = {
-            'application': 30,
-            'server': 25,
-            'route': 20,
-            'controller': 18,
-            'model': 18,
-            'service': 15,
-            'middleware': 12,
-            'utility': 10,
-            'config': 10,
-            'endpoint': 8,
-            'database': 15,
-            'helper': 12,
-            'type': 10
+    private getNodeRadius(type: string): number {
+        const sizes: Record<string, number> = {
+            'application': 30, 'server': 25, 'route': 20, 'controller': 18,
+            'model': 18, 'service': 15, 'middleware': 12, 'utility': 10,
+            'config': 10, 'endpoint': 8, 'database': 15, 'helper': 12, 'type': 10
         };
         return sizes[type] || 10;
     }
 
-    // Reutilizar métodos comunes
-    async processDependencies(filePath, content, context) {
+    private async processDependencies(filePath: string, content: string, context: AnalyzerContext): Promise<void> {
         const { nodes, links, processedFiles, sourceNode, rootDir } = context;
+        if (!sourceNode || !rootDir) return;
+
         const imports = this.extractImports(content);
 
         for (const importPath of imports) {
@@ -279,7 +237,7 @@ class NodejsAnalyzer {
                 try {
                     const depContent = await fs.readFile(resolvedPath, 'utf-8');
                     const fileType = this.getFileType(resolvedPath);
-                    const depNode = {
+                    const depNode: GraphNode = {
                         id: resolvedPath,
                         name: path.basename(resolvedPath, path.extname(resolvedPath)),
                         type: fileType,
@@ -291,7 +249,6 @@ class NodejsAnalyzer {
                     nodes.push(depNode);
                     processedFiles.add(resolvedPath);
 
-                    // Crear enlace con el nodo fuente
                     links.push({
                         source: sourceNode.id,
                         target: depNode.id,
@@ -299,25 +256,20 @@ class NodejsAnalyzer {
                         type: 'imports'
                     });
 
-                    // Procesar dependencias recursivamente
                     await this.processDependencies(resolvedPath, depContent, {
-                        nodes,
-                        links,
-                        processedFiles,
+                        ...context,
                         sourceNode: depNode,
                         fileType
                     });
                 } catch (error) {
-                    console.warn(`Error processing dependency: ${resolvedPath}`);
+                    // Ignore errors
                 }
             }
         }
     }
 
-    getFileType(filePath) {
+    private getFileType(filePath: string): string {
         const dir = path.dirname(filePath);
-        const dirName = path.basename(dir).toLowerCase();
-        
         if (dir.includes('routes')) return 'route';
         if (dir.includes('controllers')) return 'controller';
         if (dir.includes('models')) return 'model';
@@ -328,23 +280,20 @@ class NodejsAnalyzer {
         if (dir.includes('prisma')) return 'database';
         if (dir.includes('types')) return 'type';
         if (dir.includes('helpers')) return 'helper';
-        
         return 'module';
     }
 
-    // Otros métodos auxiliares reutilizados
-    extractImports(content) {
-        const imports = new Set();
+    private extractImports(content: string): Set<string> {
+        const imports = new Set<string>();
         const patterns = [
-            /require\(['"]([^'"]+)['"]\)/g,     // require
-            /from\s+['"]([^'"]+)['"]/g,         // import from
-            /import\s+['"]([^'"]+)['"]/g        // direct import
+            /require\(['"]([^'"]+)['"]\)/g,
+            /from\s+['"]([^'"]+)['"]/g,
+            /import\s+['"]([^'"]+)['"]/g
         ];
 
         patterns.forEach(pattern => {
             let match;
             while ((match = pattern.exec(content)) !== null) {
-                // Solo incluir importaciones locales
                 if (match[1].startsWith('.') || match[1].startsWith('/')) {
                     imports.add(match[1]);
                 }
@@ -354,58 +303,47 @@ class NodejsAnalyzer {
         return imports;
     }
 
-    async resolveImportPath(importPath, currentFile, rootDir) {
+    private async resolveImportPath(importPath: string, currentFile: string, rootDir: string): Promise<string | null> {
         const basePath = path.dirname(currentFile);
-        
-        let resolvedPath;
+        let resolvedPath: string;
+
         if (importPath.startsWith('.')) {
             resolvedPath = path.resolve(basePath, importPath);
         } else if (importPath.startsWith('/')) {
             resolvedPath = path.join(rootDir, importPath);
         } else {
-            // Para imports que podrían estar en src/
             resolvedPath = path.join(rootDir, 'src', importPath);
         }
 
         const extensions = ['.ts', '.js', '.json'];
-        
-        // Verificar con extensiones
         for (const ext of extensions) {
             const fullPath = resolvedPath + ext;
-            if (await this.fileExists(fullPath)) {
-                return fullPath;
-            }
+            if (await this.fileExists(fullPath)) return fullPath;
         }
 
-        // Verificar index files
         for (const ext of extensions) {
             const indexPath = path.join(resolvedPath, `index${ext}`);
-            if (await this.fileExists(indexPath)) {
-                return indexPath;
-            }
+            if (await this.fileExists(indexPath)) return indexPath;
         }
 
         return null;
     }
 
-    async findProjectRoot(currentPath) {
-        // ... mismo código que otros analizadores ...
-    }
-
-    async fileExists(filePath) {
-        // ... mismo código que otros analizadores ...
-    }
-
-    async analyzePackageJson(projectRoot) {
+    private async fileExists(filePath: string): Promise<boolean> {
         try {
-            const packageJsonPath = path.join(projectRoot, 'package.json');
-            const content = await fs.readFile(packageJsonPath, 'utf-8');
+            await fs.access(filePath);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    private async analyzePackageJson(projectRoot: string): Promise<any> {
+        try {
+            const content = await fs.readFile(path.join(projectRoot, 'package.json'), 'utf-8');
             return JSON.parse(content);
-        } catch (error) {
-            console.warn('Error reading package.json:', error);
-            return { main: 'index.js' }; // valor por defecto
+        } catch {
+            return { main: 'index.js' };
         }
     }
 }
-
-module.exports = { NodejsAnalyzer };

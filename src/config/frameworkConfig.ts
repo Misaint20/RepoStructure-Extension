@@ -1,5 +1,5 @@
 // Configuración de directorios de frameworks y entornos
-const frameworkDirs = [
+export const frameworkDirs: string[] = [
     '.next',        // Next.js build output
     'dist',         // Común en varios frameworks
     'build',        // React y otros
@@ -16,16 +16,11 @@ const frameworkDirs = [
 ];
 
 // Orden personalizado para directorios principales
-const directoryOrder = [
-    '.vscode', 
+export const directoryOrder: string[] = [
+    '.vscode',
     'prisma',      // Agregamos prisma al inicio para mejor visibilidad
-    'data', 
-    'public', 
-    'src', 
+    'data',
+    'public',
+    'src',
     'tests'
 ];
-
-module.exports = {
-    frameworkDirs,
-    directoryOrder
-}; 

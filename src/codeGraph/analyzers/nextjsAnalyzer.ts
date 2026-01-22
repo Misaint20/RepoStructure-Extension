@@ -1,20 +1,14 @@
-const fs = require('fs/promises');
-const path = require('path');
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { GraphData, GraphNode, GraphLink } from '../types';
 
-class NextjsAnalyzer {
-    constructor() {
-        this.routes = new Map();
-        this.layouts = new Map();
-        this.components = new Map();
-        this.pages = new Map();
-    }
-
-    async analyzeNextProject(projectRoot) {
+export class NextjsAnalyzer {
+    async analyzeNextProject(projectRoot: string): Promise<GraphData> {
         const appDirectory = path.join(projectRoot, 'src', 'app');
         const hasAppDir = await this.fileExists(appDirectory);
         const rootDir = hasAppDir ? appDirectory : path.join(projectRoot, 'src', 'pages');
 
-        const appNode = {
+        const appNode: GraphNode = {
             id: 'nextjs-root',
             name: 'Next.js App',
             type: 'application',
@@ -22,11 +16,10 @@ class NextjsAnalyzer {
             radius: 30
         };
 
-        const nodes = [appNode];
-        const links = [];
-        const processedFiles = new Set();
+        const nodes: GraphNode[] = [appNode];
+        const links: GraphLink[] = [];
+        const processedFiles = new Set<string>();
 
-        // Analizar estructura de carpetas para rutas
         await this.scanAppDirectory(rootDir, {
             nodes,
             links,
@@ -38,14 +31,13 @@ class NextjsAnalyzer {
         return { nodes, links };
     }
 
-    async scanAppDirectory(currentPath, context) {
+    private async scanAppDirectory(currentPath: string, context: any): Promise<void> {
         const entries = await fs.readdir(currentPath, { withFileTypes: true });
         const { nodes, links, processedFiles, parentNode, isAppDir } = context;
         const rootDir = isAppDir ? path.join(currentPath, '..', '..') : currentPath;
 
-        // Primero procesar layout si existe
         const layoutFile = entries.find(e => /^layout\.(jsx?|tsx?)$/.test(e.name));
-        let layoutNode = null;
+        let layoutNode: GraphNode | null = null;
 
         if (layoutFile) {
             const layoutPath = path.join(currentPath, layoutFile.name);
@@ -53,7 +45,7 @@ class NextjsAnalyzer {
                 const content = await fs.readFile(layoutPath, 'utf-8');
                 layoutNode = {
                     id: layoutPath,
-                    name: 'layout',  // Simplificar nombre del layout
+                    name: 'layout',
                     type: 'layout',
                     content,
                     group: 2,
@@ -62,7 +54,6 @@ class NextjsAnalyzer {
                 nodes.push(layoutNode);
                 processedFiles.add(layoutPath);
 
-                // Conectar layout con el nodo padre
                 links.push({
                     source: layoutNode.id,
                     target: parentNode.id,
@@ -70,7 +61,6 @@ class NextjsAnalyzer {
                     type: 'layout-structure'
                 });
 
-                // Procesar dependencias del layout
                 await this.processDependencies(layoutPath, content, {
                     nodes,
                     links,
@@ -80,16 +70,15 @@ class NextjsAnalyzer {
             }
         }
 
-        // Procesar page.tsx/js
         const pageFile = entries.find(e => /^page\.(jsx?|tsx?)$/.test(e.name));
         if (pageFile) {
             const pagePath = path.join(currentPath, pageFile.name);
             if (!processedFiles.has(pagePath)) {
                 const content = await fs.readFile(pagePath, 'utf-8');
                 const routePath = this.getRouteName(currentPath, rootDir);
-                const pageNode = {
+                const pageNode: GraphNode = {
                     id: pagePath,
-                    name: routePath || '/',  // Usar ruta web como nombre
+                    name: routePath || '/',
                     type: 'page',
                     content,
                     group: 1,
@@ -98,7 +87,6 @@ class NextjsAnalyzer {
                 nodes.push(pageNode);
                 processedFiles.add(pagePath);
 
-                // Conectar página con layout o app
                 links.push({
                     source: pageNode.id,
                     target: layoutNode ? layoutNode.id : parentNode.id,
@@ -106,7 +94,6 @@ class NextjsAnalyzer {
                     type: 'route'
                 });
 
-                // Procesar dependencias de la página
                 await this.processDependencies(pagePath, content, {
                     nodes,
                     links,
@@ -116,7 +103,6 @@ class NextjsAnalyzer {
             }
         }
 
-        // Procesar subdirectorios
         for (const entry of entries) {
             if (entry.isDirectory() && !entry.name.startsWith('_') && !entry.name.startsWith('.')) {
                 await this.scanAppDirectory(
@@ -133,7 +119,7 @@ class NextjsAnalyzer {
         }
     }
 
-    async processDependencies(filePath, content, context) {
+    private async processDependencies(filePath: string, content: string, context: any): Promise<void> {
         const { nodes, links, processedFiles, sourceNode } = context;
         const imports = this.extractImports(content);
 
@@ -142,7 +128,7 @@ class NextjsAnalyzer {
             if (resolvedPath && !processedFiles.has(resolvedPath)) {
                 try {
                     const depContent = await fs.readFile(resolvedPath, 'utf-8');
-                    const depNode = {
+                    const depNode: GraphNode = {
                         id: resolvedPath,
                         name: path.basename(resolvedPath),
                         type: 'component',
@@ -161,26 +147,23 @@ class NextjsAnalyzer {
                         type: 'imports'
                     });
 
-                    // Procesar dependencias anidadas
                     await this.processDependencies(resolvedPath, depContent, {
-                        nodes,
-                        links,
-                        processedFiles,
+                        ...context,
                         sourceNode: depNode
                     });
                 } catch (error) {
-                    console.warn(`Error processing dependency: ${resolvedPath}`);
+                    // Ignore
                 }
             }
         }
     }
 
-    extractImports(content) {
-        const imports = new Set();
+    private extractImports(content: string): Set<string> {
+        const imports = new Set<string>();
         const patterns = [
-            /from\s+['"](@\/[^'"]+)['"]/g,    // @/ imports
-            /from\s+['"](\.[^'"]+)['"]/g,      // relative imports
-            /import\s+['"](\.[^'"]+)['"]/g     // direct imports
+            /from\s+['"](@\/[^'"]+)['"]/g,
+            /from\s+['"](\.[^'"]+)['"]/g,
+            /import\s+['"](\.[^'"]+)['"]/g
         ];
 
         patterns.forEach(pattern => {
@@ -189,49 +172,38 @@ class NextjsAnalyzer {
                 imports.add(match[1]);
             }
         });
-
         return imports;
     }
 
-    async resolveImportPath(importPath, currentFile) {
+    private async resolveImportPath(importPath: string, currentFile: string): Promise<string | null> {
         const basePath = path.dirname(currentFile);
         const projectRoot = await this.findProjectRoot(basePath);
-        
+
         let resolvedPath = importPath.startsWith('@/')
             ? path.resolve(projectRoot, 'src', importPath.slice(2))
             : path.resolve(basePath, importPath);
 
         const extensions = ['.tsx', '.ts', '.jsx', '.js'];
-        
-        // Verificar extensiones directas
         for (const ext of extensions) {
             const fullPath = resolvedPath + ext;
-            if (await this.fileExists(fullPath)) {
-                return fullPath;
-            }
+            if (await this.fileExists(fullPath)) return fullPath;
         }
 
-        // Verificar index files
         for (const ext of extensions) {
             const indexPath = path.join(resolvedPath, `index${ext}`);
-            if (await this.fileExists(indexPath)) {
-                return indexPath;
-            }
+            if (await this.fileExists(indexPath)) return indexPath;
         }
 
         return null;
     }
 
-    getRouteName(pagePath, rootDir) {
-        // Obtener la ruta relativa desde la raíz del proyecto
+    private getRouteName(pagePath: string, rootDir: string): string {
         const relativePath = path.relative(rootDir, pagePath);
-        
-        // Convertir a formato de ruta web
         const routePath = '/' + relativePath
             .split(path.sep)
-            .filter(part => 
-                !part.startsWith('(') && 
-                !part.startsWith('_') && 
+            .filter(part =>
+                !part.startsWith('(') &&
+                !part.startsWith('_') &&
                 part !== 'page' &&
                 part !== 'app' &&
                 part !== 'pages' &&
@@ -239,36 +211,28 @@ class NextjsAnalyzer {
             )
             .map(part => {
                 if (part.startsWith('[') && part.endsWith(']')) {
-                    // Manejar rutas dinámicas
-                    if (part.startsWith('[...')) {
-                        // Catch-all routes [...param]
-                        return '*';
-                    } else {
-                        // Dynamic routes [param]
-                        return `:${part.slice(1, -1)}`;
-                    }
+                    if (part.startsWith('[...')) return '*';
+                    return `:${part.slice(1, -1)}`;
                 }
                 return part;
             })
             .filter(Boolean)
             .join('/')
-            .replace(/\/+/g, '/'); // Eliminar slashes duplicados
+            .replace(/\/+/g, '/');
 
-        return routePath === '' ? '/' : routePath;  // Retornar '/' para la ruta principal
+        return routePath === '' ? '/' : routePath;
     }
 
-    async findProjectRoot(currentPath) {
+    private async findProjectRoot(currentPath: string): Promise<string> {
         let dir = currentPath;
         while (dir !== path.dirname(dir)) {
-            if (await this.fileExists(path.join(dir, 'package.json'))) {
-                return dir;
-            }
+            if (await this.fileExists(path.join(dir, 'package.json'))) return dir;
             dir = path.dirname(dir);
         }
         return currentPath;
     }
 
-    async fileExists(filePath) {
+    private async fileExists(filePath: string): Promise<boolean> {
         try {
             await fs.access(filePath);
             return true;
@@ -277,5 +241,3 @@ class NextjsAnalyzer {
         }
     }
 }
-
-module.exports = { NextjsAnalyzer };

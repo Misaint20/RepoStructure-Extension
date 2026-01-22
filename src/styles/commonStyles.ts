@@ -1,4 +1,4 @@
-const commonStyles = {
+export const commonStyles = {
     container: `
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
         padding: 24px 0;
@@ -38,5 +38,3 @@ const commonStyles = {
         background-color: var(--vscode-statusBarItem-prominentBackground);
     `
 };
-
-module.exports = { commonStyles }; 

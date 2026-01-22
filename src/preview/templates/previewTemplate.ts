@@ -1,17 +1,16 @@
-const { commonStyles } = require('../../styles/commonStyles');
-const { debounce } = require('../../utils/common');
+import { commonStyles } from '../../styles/commonStyles';
 
-function getPreviewHTML(structure, viewType = 'normal') {
+export function getPreviewHTML(structure: string, viewType: 'normal' | 'minimal' = 'normal'): string {
     const isMinimal = viewType === 'minimal';
     const content = isMinimal ? `<pre>${structure}</pre>` : structure;
-    
+
     return `
         <!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; ${isMinimal ? '' : 'img-src https: data:;'} style-src 'self'; script-src 'self';">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; ${isMinimal ? '' : 'img-src https: data:;'} style-src 'unsafe-inline'; script-src 'unsafe-inline';">
             <style>
                 body {
                     font-family: var(--vscode-font-family);
@@ -96,8 +95,21 @@ function getPreviewHTML(structure, viewType = 'normal') {
             <script>
                 const vscode = acquireVsCodeApi();
                 
-                // Búsqueda en tiempo real con debounce
+                // Búsqueda en tiempo real
                 const searchInput = document.getElementById('searchInput');
+                
+                function debounce(func, wait) {
+                    let timeout;
+                    return function executedFunction(...args) {
+                        const later = () => {
+                            clearTimeout(timeout);
+                            func(...args);
+                        };
+                        clearTimeout(timeout);
+                        timeout = setTimeout(later, wait);
+                    };
+                }
+
                 const debouncedSearch = debounce((value) => {
                     const items = document.querySelectorAll('.tree-item');
                     items.forEach(item => {
@@ -152,5 +164,3 @@ function getPreviewHTML(structure, viewType = 'normal') {
         </html>
     `;
 }
-
-module.exports = { getPreviewHTML };
